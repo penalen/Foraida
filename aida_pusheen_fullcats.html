@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>For Aida</title>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Nunito',sans-serif;background:#FFF8D6;min-height:100vh;overflow:hidden;touch-action:manipulation;user-select:none;}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;background:linear-gradient(180deg,#FFF8D6 0%,#FFEEB0 60%,#FFD97A 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;padding:28px;text-align:center;}
+.splash-title{font-family:'Pacifico',cursive;font-size:clamp(20px,5.5vw,30px);color:#C8547A;line-height:1.5;margin-bottom:30px;text-shadow:0 2px 0 rgba(255,255,255,0.7);}
+#startBtn{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:12px;animation:floatBtn 2.4s ease-in-out infinite;}
+@keyframes floatBtn{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-10px) scale(1.04);}}
+#startBtn svg{width:130px;height:130px;filter:drop-shadow(0 6px 18px rgba(200,84,122,0.3));}
+.start-label{font-family:'Pacifico',cursive;font-size:17px;color:#C8547A;}
+
+/* GAME */
+#game{display:none;flex-direction:column;align-items:center;height:100vh;padding:14px 14px 18px;gap:10px;background:linear-gradient(180deg,#FFF8D6 0%,#FFEEB0 100%);}
+.hud{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:400px;background:rgba(255,255,255,0.65);border-radius:22px;padding:10px 22px;border:1.5px solid rgba(249,168,201,0.55);}
+.hud-item{text-align:center;}
+.hud-label{font-size:10px;font-weight:900;color:#B06080;text-transform:uppercase;letter-spacing:0.6px;}
+.hud-val{font-family:'Pacifico',cursive;font-size:24px;color:#C8547A;}
+.hud-val.goal{color:#B07A00;}
+.prog-wrap{width:100%;max-width:400px;height:12px;background:rgba(255,255,255,0.5);border-radius:20px;overflow:hidden;border:1px solid rgba(249,168,201,0.4);}
+.prog-fill{height:100%;background:linear-gradient(90deg,#F9A8C9 0%,#F5D55A 100%);border-radius:20px;transition:width 0.3s ease;width:0%;}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;max-width:360px;flex:1;align-content:center;}
+
+/*
+  STRUCTURE per hole:
+  .hole-cell  — tall enough for the cat + mound. overflow:visible so cat head shows above.
+    .clip-zone  — covers only the lower portion (mound height). overflow:hidden here clips the cat below the mound line.
+      .pusheen-wrap — starts translated down, animates up
+    .mound      — visual hill, sits on top of clip-zone
+    .hole-dark  — dark ellipse inside mound
+*/
+.hole-cell{
+  position:relative;
+  height:220px;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+
+/* This div is exactly the height of the mound and clips anything inside it */
+.clip-zone{
+  position:absolute;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:90px;
+  height:180px;      /* show almost full cat */
+  overflow:hidden;  /* THE clip */
+  z-index:2;
+}
+
+/* Pusheen inside the clip zone, starts fully below, rises up out of clip */
+.pusheen-wrap{
+  position:absolute;
+  bottom:-100px;    /* starts hidden */
+  left:50%;
+  transform:translateX(-50%);
+  width:80px;
+  cursor:pointer;
+  pointer-events:none;
+}
+.pusheen-wrap.active{pointer-events:auto;}
+
+.pusheen-wrap.pop-up  { animation:catPop  0.5s cubic-bezier(0.34,1.55,0.64,1) forwards; }
+.pusheen-wrap.hide-down{ animation:catHide 0.32s ease-in forwards; }
+.pusheen-wrap.smacked  { animation:catSmack 0.4s ease forwards !important; pointer-events:none; }
+
+/* target bottom value: cat base sits at bottom:0 of clip-zone, so head sticks out above */
+@keyframes catPop {
+  0%  {bottom:-100px;}
+  60% {bottom:105px;}
+  78% {bottom:95px;}
+  90% {bottom:102px;}
+  100%{bottom:100px;}
+}
+@keyframes catHide {
+  0%  {bottom:100px;}
+  100%{bottom:-100px;}
+}
+@keyframes catSmack {
+  0%  {bottom:78px;  transform:translateX(-50%) scale(1)    rotate(0deg);  opacity:1;}
+  25% {bottom:74px;  transform:translateX(-50%) scale(1.2)  rotate(-10deg);opacity:1;}
+  55% {bottom:30px;  transform:translateX(-50%) scale(0.85) rotate(8deg);  opacity:.8;}
+  100%{bottom:-100px;transform:translateX(-50%) scale(0.6)  rotate(0deg);  opacity:0;}
+}
+
+/* Mound on top of clip-zone, z-index higher so it covers the cat base visually */
+.mound{
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:90px;height:52px;
+  background:radial-gradient(ellipse at 50% 25%,#F0C060 0%,#D4A030 55%,#B07A00 100%);
+  border-radius:50% 50% 0 0 / 80% 80% 0 0;
+  z-index:3;
+  pointer-events:none;
+}
+.hole-dark{
+  position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  width:62px;height:22px;
+  background:radial-gradient(ellipse at 50% 30%,#3A1848 0%,#180820 100%);
+  border-radius:50%;
+  box-shadow:inset 0 4px 12px rgba(0,0,0,0.8);
+  z-index:4;
+  pointer-events:none;
+}
+
+/* score pop */
+.score-pop{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-family:'Pacifico',cursive;font-size:20px;color:#C8547A;pointer-events:none;z-index:20;white-space:nowrap;animation:scoreFly 0.65s ease-out forwards;}
+@keyframes scoreFly{0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}100%{opacity:0;transform:translateX(-50%) translateY(-46px) scale(1.3);}}
+
+/* WIN */
+#win{display:none;position:fixed;inset:0;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#FFF8D6 0%,#FFEEB0 55%,#FFD97A 100%);z-index:200;text-align:center;padding:32px 28px;overflow:hidden;}
+.win-cat{margin-bottom:20px;animation:winFloat 1.2s ease-in-out infinite alternate;}
+.win-cat svg{width:120px;height:120px;filter:drop-shadow(0 6px 18px rgba(200,84,122,0.25));}
+@keyframes winFloat{from{transform:translateY(0) scale(1);}to{transform:translateY(-14px) scale(1.04);}}
+.win-msg{font-family:'Pacifico',cursive;font-size:clamp(24px,6.5vw,36px);color:#C8547A;line-height:1.5;margin-bottom:32px;text-shadow:0 2px 0 rgba(255,255,255,0.7);}
+#replayBtn{background:linear-gradient(135deg,#F9A8C9 0%,#F0C040 100%);border:none;border-radius:50px;padding:14px 44px;font-family:'Pacifico',cursive;font-size:17px;color:white;cursor:pointer;box-shadow:0 4px 20px rgba(200,84,122,0.35);text-shadow:0 1px 3px rgba(0,0,0,0.18);}
+#replayBtn:active{transform:scale(0.95);}
+.confetti-piece{position:absolute;border-radius:2px;opacity:0;animation:confettiFall linear forwards;}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(100vh) rotate(540deg);}}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-title">for my sweet girl<br>Aida Begic</div>
+  <button id="startBtn" onclick="startGame()">
+    <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="80" cy="108" rx="52" ry="42" fill="#FFF6C7"/>
+      <ellipse cx="80" cy="104" rx="49" ry="40" fill="#FFFFFF"/>
+      <ellipse cx="80" cy="112" rx="28" ry="22" fill="#FFD6EA"/>
+      <path d="M56 72 Q54 88 55 96" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M80 68 Q78 84 79 94" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M104 72 Q106 88 105 96" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="80" cy="72" rx="44" ry="42" fill="#FFFFFF"/>
+      <ellipse cx="46" cy="36" rx="13" ry="17" fill="#FFF6C7" transform="rotate(-12,46,36)"/>
+      <ellipse cx="114" cy="36" rx="13" ry="17" fill="#FFF6C7" transform="rotate(12,114,36)"/>
+      <ellipse cx="46" cy="36" rx="7" ry="10" fill="#F0C8DC" transform="rotate(-12,46,36)"/>
+      <ellipse cx="114" cy="36" rx="7" ry="10" fill="#F0C8DC" transform="rotate(12,114,36)"/>
+      <ellipse cx="64" cy="70" rx="8" ry="7" fill="#3A2840"/>
+      <ellipse cx="96" cy="70" rx="8" ry="7" fill="#3A2840"/>
+      <circle cx="67" cy="67" r="3" fill="white"/>
+      <circle cx="99" cy="67" r="3" fill="white"/>
+      <path d="M56 65 Q64 60 72 65" stroke="#3A2840" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M88 65 Q96 60 104 65" stroke="#3A2840" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="50" cy="82" rx="12" ry="8" fill="#F9A8C9" opacity="0.7"/>
+      <ellipse cx="110" cy="82" rx="12" ry="8" fill="#F9A8C9" opacity="0.7"/>
+      <ellipse cx="80" cy="82" rx="4" ry="3" fill="#F0A0B8"/>
+      <path d="M74 88 Q80 96 86 88" stroke="#3A2840" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <line x1="28" y1="76" x2="60" y2="80" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="28" y1="84" x2="60" y2="84" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="100" y1="80" x2="132" y2="76" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="100" y1="84" x2="132" y2="84" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="48" cy="144" rx="22" ry="15" fill="#FFF6C7"/>
+      <ellipse cx="112" cy="144" rx="22" ry="15" fill="#FFF6C7"/>
+      <path d="M128 118 Q158 100 150 80 Q142 62 130 74" fill="#FFF6C7"/>
+      <ellipse cx="140" cy="72" rx="14" ry="10" fill="#F4B6D2"/>
+      <ellipse cx="64" cy="42" rx="13" ry="8" fill="#F9A8C9" transform="rotate(-18,64,42)"/>
+      <ellipse cx="96" cy="42" rx="13" ry="8" fill="#F9A8C9" transform="rotate(18,96,42)"/>
+      <circle cx="80" cy="42" r="7" fill="#E8749F"/>
+      <ellipse cx="80" cy="42" rx="4" ry="3" fill="#F9C0D8"/>
+    </svg>
+    <span class="start-label">Tippe mich an</span>
+  </button>
+</div>
+
+<div id="game">
+  <div class="hud">
+    <div class="hud-item"><div class="hud-label">Getroffen</div><div class="hud-val" id="scoreDisp">0</div></div>
+    <div class="hud-item"><div class="hud-label">Ziel</div><div class="hud-val goal">15</div></div>
+    <div class="hud-item"><div class="hud-label">Zeit</div><div class="hud-val" id="timerDisp">90</div></div>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="win">
+  <div class="win-cat">
+    <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="80" cy="108" rx="52" ry="42" fill="#FFF6C7"/>
+      <ellipse cx="80" cy="104" rx="49" ry="40" fill="#FFFFFF"/>
+      <ellipse cx="80" cy="112" rx="28" ry="22" fill="#FFD6EA"/>
+      <path d="M56 72 Q54 88 55 96" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M80 68 Q78 84 79 94" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M104 72 Q106 88 105 96" stroke="#F4B6D2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="80" cy="72" rx="44" ry="42" fill="#FFFFFF"/>
+      <ellipse cx="46" cy="36" rx="13" ry="17" fill="#FFF6C7" transform="rotate(-12,46,36)"/>
+      <ellipse cx="114" cy="36" rx="13" ry="17" fill="#FFF6C7" transform="rotate(12,114,36)"/>
+      <ellipse cx="46" cy="36" rx="7" ry="10" fill="#F0C8DC" transform="rotate(-12,46,36)"/>
+      <ellipse cx="114" cy="36" rx="7" ry="10" fill="#F0C8DC" transform="rotate(12,114,36)"/>
+      <ellipse cx="64" cy="70" rx="9" ry="9" fill="#3A2840"/>
+      <ellipse cx="96" cy="70" rx="9" ry="9" fill="#3A2840"/>
+      <circle cx="67" cy="67" r="3.5" fill="white"/>
+      <circle cx="99" cy="67" r="3.5" fill="white"/>
+      <ellipse cx="50" cy="83" rx="12" ry="8" fill="#F9A8C9" opacity="0.8"/>
+      <ellipse cx="110" cy="83" rx="12" ry="8" fill="#F9A8C9" opacity="0.8"/>
+      <ellipse cx="80" cy="82" rx="4" ry="3" fill="#F0A0B8"/>
+      <path d="M68 90 Q80 104 92 90" stroke="#3A2840" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <line x1="28" y1="76" x2="60" y2="80" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="28" y1="84" x2="60" y2="84" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="100" y1="80" x2="132" y2="76" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="100" y1="84" x2="132" y2="84" stroke="#A898B8" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="48" cy="144" rx="22" ry="15" fill="#FFF6C7"/>
+      <ellipse cx="112" cy="144" rx="22" ry="15" fill="#FFF6C7"/>
+      <path d="M128 118 Q158 100 150 80 Q142 62 130 74" fill="#FFF6C7"/>
+      <ellipse cx="140" cy="72" rx="14" ry="10" fill="#F4B6D2"/>
+      <ellipse cx="64" cy="42" rx="13" ry="8" fill="#F5D55A" transform="rotate(-18,64,42)"/>
+      <ellipse cx="96" cy="42" rx="13" ry="8" fill="#F5D55A" transform="rotate(18,96,42)"/>
+      <circle cx="80" cy="42" r="7" fill="#E8B800"/>
+      <ellipse cx="80" cy="42" rx="4" ry="3" fill="#FFF0A0"/>
+    </svg>
+  </div>
+  <div class="win-msg">Volim te<br>Dusa moja Slatka</div>
+  <button id="replayBtn" onclick="replayGame()">Nochmal spielen</button>
+</div>
+
+<script>
+const HOLES=9, WIN_SCORE=15, GAME_TIME=90;
+const BOWS=[
+  {bow:'#F9A8C9',bowC:'#E8749F',bowH:'#F9C0D8'},
+  {bow:'#F5D55A',bowC:'#D4A800',bowH:'#FFF0A0'},
+];
+
+let score=0,timeLeft=GAME_TIME,gameInterval=null;
+let activeHole=-1,activeTimer=null,spawnTimer=null,gameRunning=false;
+
+function makePusheen(b){
+  return `<svg viewBox="0 0 90 100" xmlns="http://www.w3.org/2000/svg" style="width:80px;height:88px;display:block;overflow:visible">
+    <ellipse cx="45" cy="80" rx="34" ry="24" fill="#FFF6C7"/>
+    <ellipse cx="45" cy="76" rx="32" ry="23" fill="#FFFFFF"/>
+    <ellipse cx="45" cy="82" rx="18" ry="13" fill="white" opacity="0.5"/>
+    <path d="M28 54 Q27 66 28 72" stroke="#F4B6D2" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M45 50 Q44 62 45 69" stroke="#F4B6D2" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M62 54 Q63 66 62 72" stroke="#F4B6D2" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="45" cy="46" rx="34" ry="32" fill="#FFFFFF"/>
+    <ellipse cx="17" cy="20" rx="10" ry="13" fill="#FFF6C7" transform="rotate(-14,17,20)"/>
+    <ellipse cx="73" cy="20" rx="10" ry="13" fill="#FFF6C7" transform="rotate(14,73,20)"/>
+    <ellipse cx="17" cy="20" rx="6"  ry="8"  fill="#F0C8DC" transform="rotate(-14,17,20)"/>
+    <ellipse cx="73" cy="20" rx="6"  ry="8"  fill="#F0C8DC" transform="rotate(14,73,20)"/>
+    <ellipse cx="34" cy="44" rx="7" ry="6.5" fill="#3A2840"/>
+    <ellipse cx="56" cy="44" rx="7" ry="6.5" fill="#3A2840"/>
+    <circle  cx="36" cy="42" r="2.5" fill="white"/>
+    <circle  cx="58" cy="42" r="2.5" fill="white"/>
+    <path d="M27 40 Q34 35 41 40" stroke="#3A2840" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M49 40 Q56 35 63 40" stroke="#3A2840" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <ellipse cx="22" cy="54" rx="10" ry="7" fill="#F9A8C9" opacity="0.65"/>
+    <ellipse cx="68" cy="54" rx="10" ry="7" fill="#F9A8C9" opacity="0.65"/>
+    <ellipse cx="45" cy="53" rx="3.5" ry="3" fill="#F0A0B8"/>
+    <path d="M39 59 Q45 66 51 59" stroke="#3A2840" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <line x1="4"  y1="49" x2="30" y2="52" stroke="#A898B8" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="4"  y1="56" x2="30" y2="56" stroke="#A898B8" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="60" y1="52" x2="86" y2="49" stroke="#A898B8" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="60" y1="56" x2="86" y2="56" stroke="#A898B8" stroke-width="1.2" stroke-linecap="round"/>
+    <ellipse cx="25" cy="97" rx="17" ry="10" fill="#FFF6C7"/>
+    <ellipse cx="65" cy="97" rx="17" ry="10" fill="#FFF6C7"/>
+    <path d="M76 78 Q98 64 92 48 Q86 33 76 44" fill="#FFF6C7"/>
+    <ellipse cx="84" cy="43" rx="11" ry="8" fill="#F4B6D2"/>
+    <ellipse cx="33" cy="16" rx="11" ry="7" fill="${b.bow}" transform="rotate(-18,33,16)"/>
+    <ellipse cx="57" cy="16" rx="11" ry="7" fill="${b.bow}" transform="rotate(18,57,16)"/>
+    <circle  cx="45" cy="16" r="6"   fill="${b.bowC}"/>
+    <ellipse cx="45" cy="16" rx="3.5" ry="2.5" fill="${b.bowH}"/>
+  </svg>`;
+}
+
+function buildGrid(){
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  for(let i=0;i<HOLES;i++){
+    const cell=document.createElement('div');
+    cell.className='hole-cell';
+    cell.id='cell'+i;
+
+    // clip zone hides the pusheen while it's below mound level
+    const clip=document.createElement('div');
+    clip.className='clip-zone';
+
+    const pw=document.createElement('div');
+    pw.className='pusheen-wrap';
+    pw.id='pw'+i;
+    pw.innerHTML=makePusheen(BOWS[i%2]);
+    pw.addEventListener('click',e=>{e.stopPropagation();hitHole(i);});
+    pw.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();hitHole(i);},{passive:false});
+
+    clip.appendChild(pw);
+
+    const mound=document.createElement('div');
+    mound.className='mound';
+    const hole=document.createElement('div');
+    hole.className='hole-dark';
+
+    cell.appendChild(clip);
+    cell.appendChild(mound);
+    cell.appendChild(hole);
+    grid.appendChild(cell);
+  }
+}
+
+function showPusheen(idx){
+  if(!gameRunning)return;
+  activeHole=idx;
+  const pw=document.getElementById('pw'+idx);
+  pw.innerHTML=makePusheen(BOWS[Math.floor(Math.random()*2)]);
+  pw.style.bottom='-100px';
+  pw.classList.remove('hide-down','smacked');
+  pw.classList.add('active','pop-up');
+  const stay=Math.max(1000,1800-score*40);
+  activeTimer=setTimeout(()=>{if(activeHole===idx)hidePusheen(idx,false);},stay);
+}
+
+function hidePusheen(idx,wasHit){
+  clearTimeout(activeTimer);
+  const pw=document.getElementById('pw'+idx);
+  pw.classList.remove('pop-up','active');
+  if(!wasHit){
+    pw.classList.add('hide-down');
+    pw.addEventListener('animationend',()=>{
+      pw.classList.remove('hide-down');
+      pw.style.bottom='-100px';
+    },{once:true});
+  }
+  activeHole=-1;
+  if(gameRunning) spawnTimer=setTimeout(()=>spawnNext(idx),wasHit?320:620);
+}
+
+function spawnNext(lastIdx){
+  if(!gameRunning)return;
+  let next;
+  do{next=Math.floor(Math.random()*HOLES);}while(next===lastIdx&&HOLES>1);
+  showPusheen(next);
+}
+
+function hitHole(idx){
+  if(!gameRunning||activeHole!==idx)return;
+  clearTimeout(activeTimer);clearTimeout(spawnTimer);
+  score++;
+  document.getElementById('scoreDisp').textContent=score;
+  document.getElementById('progFill').style.width=Math.min(100,(score/WIN_SCORE)*100)+'%';
+  const pw=document.getElementById('pw'+idx);
+  const cell=document.getElementById('cell'+idx);
+  pw.classList.remove('pop-up','active');
+  pw.classList.add('smacked');
+  pw.addEventListener('animationend',()=>{pw.classList.remove('smacked');pw.style.bottom='-100px';},{once:true});
+  const pop=document.createElement('div');
+  pop.className='score-pop';pop.textContent='+1';
+  cell.appendChild(pop);setTimeout(()=>pop.remove(),700);
+  activeHole=-1;
+  if(score>=WIN_SCORE)setTimeout(showWin,500);
+  else spawnTimer=setTimeout(()=>spawnNext(idx),350);
+}
+
+function updateTimer(){
+  timeLeft--;
+  document.getElementById('timerDisp').textContent=timeLeft;
+  if(timeLeft<=0){gameRunning=false;clearInterval(gameInterval);clearTimeout(activeTimer);clearTimeout(spawnTimer);showWin();}
+}
+
+function showWin(){
+  gameRunning=false;clearInterval(gameInterval);clearTimeout(activeTimer);clearTimeout(spawnTimer);
+  document.getElementById('game').style.display='none';
+  document.getElementById('win').style.display='flex';
+  spawnConfetti();
+}
+
+function spawnConfetti(){
+  const win=document.getElementById('win');
+  const colors=['#F9A8C9','#FFF0A0','#F5D55A','#E8749F','#FFE080','#FFDCE8','#FFC840'];
+  for(let i=0;i<45;i++){
+    const p=document.createElement('div');p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}%;top:-12px;background:${colors[Math.floor(Math.random()*colors.length)]};width:${7+Math.random()*7}px;height:${7+Math.random()*7}px;border-radius:${Math.random()>.45?'50%':'3px'};animation-duration:${2+Math.random()*2.5}s;animation-delay:${Math.random()*1.8}s;`;
+    win.appendChild(p);
+  }
+}
+
+function startGame(){
+  score=0;timeLeft=GAME_TIME;activeHole=-1;gameRunning=true;
+  clearInterval(gameInterval);clearTimeout(activeTimer);clearTimeout(spawnTimer);
+  document.getElementById('splash').style.display='none';
+  document.getElementById('win').style.display='none';
+  const g=document.getElementById('game');g.style.display='flex';
+  document.getElementById('scoreDisp').textContent='0';
+  document.getElementById('timerDisp').textContent=GAME_TIME;
+  document.getElementById('progFill').style.width='0%';
+  buildGrid();
+  setTimeout(()=>{if(gameRunning)showPusheen(Math.floor(Math.random()*HOLES));},600);
+  gameInterval=setInterval(updateTimer,1000);
+}
+
+function replayGame(){
+  document.getElementById('win').querySelectorAll('.confetti-piece').forEach(e=>e.remove());
+  startGame();
+}
+</script>
+</body>
+</html>
